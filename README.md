@@ -9,7 +9,7 @@ SheetPilot provides a robust backend API for managing spreadsheet operations, da
 ## Tech Stack
 
 ### Backend
-- **Java 17+** - Modern Java runtime
+- **Java 21** - Modern Java runtime (LTS)
 - **Spring Boot 3.2.1** - Application framework
 - **Spring Data JPA** - Data persistence layer
 - **PostgreSQL** - Primary database
@@ -48,7 +48,7 @@ sheetpilot/
 
 ### Prerequisites
 
-- Java 17 or higher
+- Java 21 or higher
 - Maven 3.6+
 - PostgreSQL 14+ (or use Railway for managed database)
 
