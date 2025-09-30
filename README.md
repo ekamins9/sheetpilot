@@ -17,8 +17,15 @@ SheetPilot provides a robust backend API for managing spreadsheet operations, da
 - **Maven** - Build and dependency management
 - **Lombok** - Boilerplate code reduction
 
+### Frontend
+- **SvelteKit** - Modern web framework
+- **TypeScript** - Type-safe JavaScript
+- **Tailwind CSS v3** - Utility-first CSS framework
+- **Vite** - Fast build tool and dev server
+
 ### Infrastructure
-- **Railway** - Cloud deployment platform
+- **Railway** - Backend deployment platform
+- **Vercel** - Frontend deployment platform
 - **PostgreSQL** - Managed database service
 
 ## Project Structure
@@ -35,12 +42,28 @@ sheetpilot/
 │   │   │   ├── repository/      # Data access layer
 │   │   │   └── SheetPilotApplication.java
 │   │   └── resources/
-│   │       ├── application.yml  # Application configuration
-│   │       └── db/migration/    # Flyway database migrations
+│   │       ├── application.yml      # Base configuration
+│   │       ├── application-prod.yml # Production settings
+│   │       └── db/migration/        # Flyway database migrations
 │   └── test/
-│       └── java/com/sheetpilot/ # Test files
-├── pom.xml                       # Maven configuration
-├── railway.json                  # Railway deployment config
+│       └── java/com/sheetpilot/     # Test files
+├── frontend/
+│   ├── src/
+│   │   ├── lib/
+│   │   │   ├── api/             # API client utilities
+│   │   │   └── components/      # Svelte components
+│   │   ├── routes/              # SvelteKit routes
+│   │   ├── app.css              # Global styles
+│   │   ├── app.html             # HTML template
+│   │   └── app.d.ts             # TypeScript declarations
+│   ├── static/                  # Static assets
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   └── vercel.json              # Vercel deployment config
+├── pom.xml                      # Maven configuration
+├── railway.json                 # Railway deployment config
+├── Procfile                     # Process configuration
 └── README.md
 ```
 
@@ -50,9 +73,12 @@ sheetpilot/
 
 - Java 21 or higher
 - Maven 3.6+
+- Node.js 18+ and npm
 - PostgreSQL 14+ (or use Railway for managed database)
 
 ### Local Development Setup
+
+#### Backend
 
 1. **Clone the repository**
    ```bash
@@ -82,10 +108,36 @@ sheetpilot/
    mvn spring-boot:run
    ```
 
-   The application will start on `http://localhost:8080`
+   The backend will start on `http://localhost:8080`
+
+#### Frontend
+
+1. **Navigate to frontend directory**
+   ```bash
+   cd frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env to set PUBLIC_API_URL if needed (defaults to http://localhost:8080)
+   ```
+
+4. **Run the development server**
+   ```bash
+   npm run dev
+   ```
+
+   The frontend will start on `http://localhost:5173`
 
 ### Running Tests
 
+#### Backend Tests
 ```bash
 # Run all tests
 mvn test
@@ -94,14 +146,37 @@ mvn test
 mvn test jacoco:report
 ```
 
+#### Frontend Tests
+```bash
+cd frontend
+
+# Type checking
+npm run check
+
+# Type checking (watch mode)
+npm run check:watch
+```
+
 ### Building for Production
 
+#### Backend
 ```bash
 # Create production JAR
 mvn clean package -DskipTests
 
 # Run the JAR
 java -jar target/sheetpilot-0.0.1-SNAPSHOT.jar
+```
+
+#### Frontend
+```bash
+cd frontend
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
 
 ## API Endpoints
@@ -125,22 +200,115 @@ The application can be configured using environment variables:
 
 ## Deployment
 
-### Railway
+### Backend Deployment (Railway)
 
-The project is configured for deployment on Railway:
+The backend is configured for deployment on Railway with PostgreSQL:
 
-1. Connect your GitHub repository to Railway
-2. Add a PostgreSQL database service
-3. Railway will automatically:
-   - Detect the `railway.json` configuration
-   - Build using Maven
-   - Run database migrations
-   - Start the application
+#### Initial Setup
 
-Required environment variables on Railway:
-- `DATABASE_URL` - Automatically provided by Railway PostgreSQL service
-- `DATABASE_USERNAME` - Automatically provided by Railway PostgreSQL service
-- `DATABASE_PASSWORD` - Automatically provided by Railway PostgreSQL service
+1. **Create a Railway account** at [railway.app](https://railway.app)
+
+2. **Create a new project**
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Connect your GitHub account and select the repository
+   - Choose the root directory (contains `pom.xml`)
+
+3. **Add PostgreSQL database**
+   - In your project, click "New"
+   - Select "Database" → "PostgreSQL"
+   - Railway will automatically provision a PostgreSQL instance
+
+4. **Configure environment variables**
+   Railway automatically injects the following from the PostgreSQL service:
+   - `DATABASE_URL` - PostgreSQL connection URL
+   - `DATABASE_USERNAME` - Database username
+   - `DATABASE_PASSWORD` - Database password
+
+   Additional variables to set:
+   - `SPRING_PROFILES_ACTIVE=prod` - Activate production profile
+   - `PORT` - Automatically provided by Railway
+
+5. **Deploy**
+   - Railway will automatically:
+     - Detect `railway.json` configuration
+     - Build using `mvn clean package -DskipTests`
+     - Run Flyway migrations
+     - Start the application with `java -Dserver.port=$PORT -jar target/sheetpilot-0.0.1-SNAPSHOT.jar`
+   - Health checks run at `/actuator/health`
+
+6. **Get your backend URL**
+   - After deployment, Railway provides a public URL
+   - Example: `https://sheetpilot-production.railway.app`
+   - Test health endpoint: `https://your-app.railway.app/api/health`
+
+#### Configuration Files
+
+- `railway.json` - Railway deployment configuration
+- `Procfile` - Alternative process definition
+- `src/main/resources/application-prod.yml` - Production-specific settings
+
+### Frontend Deployment (Vercel)
+
+The frontend is configured for deployment on Vercel:
+
+#### Initial Setup
+
+1. **Create a Vercel account** at [vercel.com](https://vercel.com)
+
+2. **Import your project**
+   - Click "New Project"
+   - Import your GitHub repository
+   - Set root directory to `frontend`
+
+3. **Configure build settings**
+   - Framework Preset: **SvelteKit**
+   - Build Command: `npm run build`
+   - Output Directory: `build` (auto-detected)
+   - Install Command: `npm install`
+
+4. **Set environment variables**
+   - Go to Project Settings → Environment Variables
+   - Add `PUBLIC_API_URL` with your Railway backend URL
+   - Example: `https://sheetpilot-production.railway.app`
+
+5. **Deploy**
+   - Click "Deploy"
+   - Vercel will automatically build and deploy your frontend
+   - You'll get a URL like `https://your-project.vercel.app`
+
+#### Automatic Deployments
+
+Both Railway and Vercel support automatic deployments:
+
+- **Production**: Deployments from `main` branch
+- **Preview**: Deployments from pull requests
+- **Rollbacks**: Easy one-click rollbacks in both platforms
+
+#### Environment Variables Summary
+
+**Railway (Backend)**:
+```bash
+SPRING_PROFILES_ACTIVE=prod
+DATABASE_URL=<auto-provided>
+DATABASE_USERNAME=<auto-provided>
+DATABASE_PASSWORD=<auto-provided>
+PORT=<auto-provided>
+```
+
+**Vercel (Frontend)**:
+```bash
+PUBLIC_API_URL=https://your-backend.railway.app
+```
+
+#### Post-Deployment Checklist
+
+- [ ] Verify backend health: `https://your-backend.railway.app/api/health`
+- [ ] Check database migrations ran successfully
+- [ ] Test frontend can connect to backend
+- [ ] Verify CORS settings allow your Vercel domain
+- [ ] Check logs in Railway and Vercel dashboards
+- [ ] Test critical user flows
 
 ## CORS Configuration
 
