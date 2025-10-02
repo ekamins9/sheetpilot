@@ -85,23 +85,16 @@ public class SpreadsheetController {
     }
 
     /**
-     * Get preview of spreadsheet data (first 100 rows)
+     * Get preview of spreadsheet data (first 1000 rows stored in database)
      * GET /api/spreadsheets/{id}/preview
      *
-     * Note: This implementation requires re-uploading the file for preview
-     * In production, you'd store the file and retrieve it from storage
-     *
      * @param id Spreadsheet ID
-     * @param file The spreadsheet file (required for preview)
      * @return SpreadsheetPreviewResponse with headers and preview rows
      */
-    @GetMapping(value = "/{id}/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<SpreadsheetPreviewResponse> getSpreadsheetPreview(
-            @PathVariable Long id,
-            @RequestParam("file") MultipartFile file) {
-
-        log.info("Generating preview for spreadsheet ID: {}", id);
-        SpreadsheetPreviewResponse response = spreadsheetService.getSpreadsheetPreview(id, file);
+    @GetMapping("/{id}/preview")
+    public ResponseEntity<SpreadsheetPreviewResponse> getSpreadsheetPreview(@PathVariable Long id) {
+        log.info("Fetching preview for spreadsheet ID: {}", id);
+        SpreadsheetPreviewResponse response = spreadsheetService.getSpreadsheetPreview(id);
         return ResponseEntity.ok(response);
     }
 

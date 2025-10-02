@@ -35,8 +35,9 @@ import java.util.stream.StreamSupport;
 public class SpreadsheetService {
 
     private final SpreadsheetRepository spreadsheetRepository;
-    private static final int PREVIEW_ROW_LIMIT = 100;
+    private static final int PREVIEW_ROW_LIMIT = 1000; // Store first 1000 rows
     private static final List<String> ALLOWED_EXTENSIONS = List.of("csv", "xlsx");
+    private static final long MAX_FILE_SIZE = 50L * 1024 * 1024; // 50MB
 
     @Transactional
     public SpreadsheetResponse uploadSpreadsheet(MultipartFile file, String uploadedBy) {
@@ -48,31 +49,46 @@ public class SpreadsheetService {
         log.info("Processing file upload: {} (type: {})", fileName, fileType);
 
         try {
+            log.info("Parsing file: {} (size: {} bytes)", fileName, file.getSize());
             SpreadsheetData data = parseFile(file, fileType);
+            log.info("File parsed successfully: {} rows, {} columns", data.getRowCount(), data.getColumnCount());
+
+            // Prepare preview data (first 1000 rows)
+            List<List<String>> previewRows = data.getRows().stream()
+                    .limit(PREVIEW_ROW_LIMIT)
+                    .collect(Collectors.toList());
+
+            Map<String, Object> previewData = new java.util.HashMap<>();
+            previewData.put("headers", data.getHeaders());
+            previewData.put("rows", previewRows);
+            previewData.put("totalRows", data.getRowCount());
+            previewData.put("previewRows", previewRows.size());
 
             Spreadsheet spreadsheet = Spreadsheet.builder()
                     .name(fileName)
+                    .fileName(fileName)
                     .fileType(fileType)
                     .fileSize(file.getSize())
                     .rowCount(data.getRowCount())
                     .columnCount(data.getColumnCount())
                     .uploadedBy(uploadedBy != null ? uploadedBy : "anonymous")
-                    .uploadedAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
+                    .previewData(previewData)
+                    .uploadedAt(java.time.Instant.now())
+                    .updatedAt(java.time.Instant.now())
                     .build();
 
-            // Store the file data (for now, we'll just store metadata)
-            // In a production system, you'd store the actual file content in a blob storage
-            // or store the parsed data in a separate table
-
             Spreadsheet saved = spreadsheetRepository.save(spreadsheet);
-            log.info("Spreadsheet saved with ID: {}", saved.getId());
+            log.info("Spreadsheet saved successfully with ID: {} ({} rows stored in preview)",
+                    saved.getId(), previewRows.size());
 
             return mapToResponse(saved);
 
         } catch (IOException e) {
             log.error("Error processing file: {}", fileName, e);
             throw new FileStorageException("Failed to store file: " + fileName, e);
+        } catch (Exception e) {
+            log.error("Unexpected error processing file: {}", fileName, e);
+            throw new FileStorageException("Unexpected error processing file: " + fileName, e);
         }
     }
 
@@ -101,35 +117,39 @@ public class SpreadsheetService {
     }
 
     @Transactional(readOnly = true)
-    public SpreadsheetPreviewResponse getSpreadsheetPreview(Long id, MultipartFile file) {
+    public SpreadsheetPreviewResponse getSpreadsheetPreview(Long id) {
+        log.info("Fetching preview for spreadsheet ID: {}", id);
+
         Spreadsheet spreadsheet = spreadsheetRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Spreadsheet", id));
 
-        // For this implementation, we'll require the file to be uploaded again for preview
-        // In production, you'd retrieve from storage
-        if (file == null || file.isEmpty()) {
-            throw new InvalidFileException("File is required for preview");
+        // Retrieve stored preview data from database
+        Map<String, Object> previewData = spreadsheet.getPreviewData();
+
+        if (previewData == null || previewData.isEmpty()) {
+            log.warn("No preview data found for spreadsheet ID: {}", id);
+            throw new InvalidFileException("Preview data not available for this spreadsheet");
         }
 
-        try {
-            SpreadsheetData data = parseFile(file, spreadsheet.getFileType());
-            List<List<String>> previewRows = data.getRows().stream()
-                    .limit(PREVIEW_ROW_LIMIT)
-                    .collect(Collectors.toList());
+        @SuppressWarnings("unchecked")
+        List<String> headers = (List<String>) previewData.get("headers");
 
-            return SpreadsheetPreviewResponse.builder()
-                    .spreadsheetId(spreadsheet.getId())
-                    .name(spreadsheet.getName())
-                    .headers(data.getHeaders())
-                    .rows(previewRows)
-                    .totalRows(data.getRowCount())
-                    .previewRows(previewRows.size())
-                    .build();
+        @SuppressWarnings("unchecked")
+        List<List<String>> rows = (List<List<String>>) previewData.get("rows");
 
-        } catch (IOException e) {
-            log.error("Error generating preview for spreadsheet ID: {}", id, e);
-            throw new FileStorageException("Failed to generate preview", e);
-        }
+        Integer totalRows = (Integer) previewData.getOrDefault("totalRows", spreadsheet.getRowCount());
+        Integer previewRows = (Integer) previewData.getOrDefault("previewRows", rows != null ? rows.size() : 0);
+
+        log.info("Retrieved preview for spreadsheet ID: {} ({} rows)", id, previewRows);
+
+        return SpreadsheetPreviewResponse.builder()
+                .spreadsheetId(spreadsheet.getId())
+                .name(spreadsheet.getName())
+                .headers(headers != null ? headers : new ArrayList<>())
+                .rows(rows != null ? rows : new ArrayList<>())
+                .totalRows(totalRows)
+                .previewRows(previewRows)
+                .build();
     }
 
     @Transactional
@@ -159,10 +179,17 @@ public class SpreadsheetService {
             );
         }
 
-        // Check file size (e.g., max 10MB)
-        long maxSize = 10 * 1024 * 1024; // 10MB
-        if (file.getSize() > maxSize) {
-            throw new InvalidFileException("File size exceeds maximum allowed size of 10MB");
+        // Check file size (max 50MB)
+        if (file.getSize() > MAX_FILE_SIZE) {
+            log.warn("File size ({} bytes) exceeds maximum allowed size ({} bytes)",
+                    file.getSize(), MAX_FILE_SIZE);
+            throw new InvalidFileException("File size exceeds maximum allowed size of 50MB");
+        }
+
+        // Check for empty content
+        if (file.getSize() == 0) {
+            log.warn("Empty file detected: {}", fileName);
+            throw new InvalidFileException("File is empty");
         }
     }
 
@@ -183,10 +210,21 @@ public class SpreadsheetService {
     }
 
     private SpreadsheetData parseCsvFile(MultipartFile file) throws IOException {
+        log.debug("Parsing CSV file: {}", file.getOriginalFilename());
+
         try (InputStreamReader reader = new InputStreamReader(file.getInputStream());
-             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
+             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT
+                     .withFirstRecordAsHeader()
+                     .withIgnoreEmptyLines()
+                     .withTrim())) {
 
             List<String> headers = new ArrayList<>(csvParser.getHeaderNames());
+
+            if (headers.isEmpty()) {
+                log.error("CSV file has no headers: {}", file.getOriginalFilename());
+                throw new InvalidFileException("CSV file must have header row");
+            }
+
             List<List<String>> rows = new ArrayList<>();
 
             for (CSVRecord record : csvParser) {
@@ -197,23 +235,39 @@ public class SpreadsheetService {
                 rows.add(row);
             }
 
+            log.debug("CSV parsed: {} headers, {} rows", headers.size(), rows.size());
             return new SpreadsheetData(headers, rows);
+
+        } catch (IllegalArgumentException e) {
+            log.error("Malformed CSV file: {}", file.getOriginalFilename(), e);
+            throw new InvalidFileException("Malformed CSV file: " + e.getMessage(), e);
         }
     }
 
     private SpreadsheetData parseExcelFile(MultipartFile file) throws IOException {
+        log.debug("Parsing Excel file: {}", file.getOriginalFilename());
+
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            if (workbook.getNumberOfSheets() == 0) {
+                log.error("Excel file has no sheets: {}", file.getOriginalFilename());
+                throw new InvalidFileException("Excel file must contain at least one sheet");
+            }
+
             Sheet sheet = workbook.getSheetAt(0); // Get first sheet
+            log.debug("Processing sheet: {}", sheet.getSheetName());
 
             List<String> headers = new ArrayList<>();
             List<List<String>> rows = new ArrayList<>();
 
             // Read headers from first row
             Row headerRow = sheet.getRow(0);
-            if (headerRow != null) {
-                for (Cell cell : headerRow) {
-                    headers.add(getCellValueAsString(cell));
-                }
+            if (headerRow == null || headerRow.getPhysicalNumberOfCells() == 0) {
+                log.error("Excel file has no header row: {}", file.getOriginalFilename());
+                throw new InvalidFileException("Excel file must have header row");
+            }
+
+            for (Cell cell : headerRow) {
+                headers.add(getCellValueAsString(cell));
             }
 
             // Read data rows
@@ -229,7 +283,15 @@ public class SpreadsheetService {
                 }
             }
 
+            log.debug("Excel parsed: {} headers, {} rows", headers.size(), rows.size());
             return new SpreadsheetData(headers, rows);
+
+        } catch (org.apache.poi.POIXMLException | org.apache.poi.openxml4j.exceptions.OpenXML4JException e) {
+            log.error("Malformed Excel file: {}", file.getOriginalFilename(), e);
+            throw new InvalidFileException("Malformed Excel file: " + e.getMessage(), e);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid Excel file format: {}", file.getOriginalFilename(), e);
+            throw new InvalidFileException("Invalid Excel file: " + e.getMessage(), e);
         }
     }
 

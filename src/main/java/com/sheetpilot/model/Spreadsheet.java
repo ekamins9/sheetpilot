@@ -36,6 +36,15 @@ public class Spreadsheet {
     @Column(name = "row_count")
     private Integer rowCount;
 
+    @Column(name = "column_count")
+    private Integer columnCount;
+
+    @Column(name = "file_type", nullable = false)
+    private String fileType;
+
+    @Column(name = "uploaded_by")
+    private String uploadedBy;
+
     /**
      * JSON structure storing column metadata
      * Example: [{"name": "id", "type": "integer"}, {"name": "name", "type": "string"}]
@@ -44,8 +53,22 @@ public class Spreadsheet {
     @Column(columnDefinition = "jsonb")
     private List<Map<String, Object>> columns;
 
+    /**
+     * JSON structure storing preview data (first 1000 rows)
+     * Example: {
+     *   "headers": ["id", "name", "email"],
+     *   "rows": [["1", "John", "john@example.com"], ["2", "Jane", "jane@example.com"]]
+     * }
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "preview_data", columnDefinition = "jsonb")
+    private Map<String, Object> previewData;
+
     @Column(name = "uploaded_at", nullable = false, updatable = false)
     private Instant uploadedAt;
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
 
     @OneToMany(mappedBy = "spreadsheet", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TransformationJob> transformationJobs;
@@ -55,5 +78,11 @@ public class Spreadsheet {
         if (uploadedAt == null) {
             uploadedAt = Instant.now();
         }
+        updatedAt = Instant.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
     }
 }
