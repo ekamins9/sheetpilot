@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -19,6 +19,6 @@ public class SpreadsheetResponse {
     private Integer rowCount;
     private Integer columnCount;
     private String uploadedBy;
-    private LocalDateTime uploadedAt;
-    private LocalDateTime updatedAt;
+    private Instant uploadedAt;
+    private Instant updatedAt;
 }

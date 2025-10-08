@@ -23,11 +23,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Slf4j
 @Service
@@ -58,7 +58,7 @@ public class SpreadsheetService {
                     .limit(PREVIEW_ROW_LIMIT)
                     .collect(Collectors.toList());
 
-            Map<String, Object> previewData = new java.util.HashMap<>();
+            Map<String, Object> previewData = new HashMap<>();
             previewData.put("headers", data.getHeaders());
             previewData.put("rows", previewRows);
             previewData.put("totalRows", data.getRowCount());
@@ -286,9 +286,6 @@ public class SpreadsheetService {
             log.debug("Excel parsed: {} headers, {} rows", headers.size(), rows.size());
             return new SpreadsheetData(headers, rows);
 
-        } catch (org.apache.poi.POIXMLException | org.apache.poi.openxml4j.exceptions.OpenXML4JException e) {
-            log.error("Malformed Excel file: {}", file.getOriginalFilename(), e);
-            throw new InvalidFileException("Malformed Excel file: " + e.getMessage(), e);
         } catch (IllegalArgumentException e) {
             log.error("Invalid Excel file format: {}", file.getOriginalFilename(), e);
             throw new InvalidFileException("Invalid Excel file: " + e.getMessage(), e);
