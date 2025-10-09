@@ -72,3 +72,7 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+
+# Claude Code
+.claude/
+CLAUDE.md
