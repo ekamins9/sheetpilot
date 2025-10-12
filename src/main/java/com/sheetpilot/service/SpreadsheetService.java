@@ -212,11 +212,15 @@ public class SpreadsheetService {
     private SpreadsheetData parseCsvFile(MultipartFile file) throws IOException {
         log.debug("Parsing CSV file: {}", file.getOriginalFilename());
 
+        CSVFormat format = CSVFormat.DEFAULT.builder()
+                .setHeader()
+                .setSkipHeaderRecord(true)
+                .setIgnoreEmptyLines(true)
+                .setTrim(true)
+                .build();
+
         try (InputStreamReader reader = new InputStreamReader(file.getInputStream());
-             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT
-                     .withFirstRecordAsHeader()
-                     .withIgnoreEmptyLines()
-                     .withTrim())) {
+             CSVParser csvParser = new CSVParser(reader, format)) {
 
             List<String> headers = new ArrayList<>(csvParser.getHeaderNames());
 
