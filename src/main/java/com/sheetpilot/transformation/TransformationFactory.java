@@ -27,6 +27,7 @@ public class TransformationFactory {
         register(new SortTransformation());
         register(new SelectTransformation());
         register(new RenameTransformation());
+        register(new JoinTransformation());
     }
 
     /**
