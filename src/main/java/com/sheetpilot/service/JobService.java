@@ -12,9 +12,13 @@ import com.sheetpilot.repository.PipelineRepository;
 import com.sheetpilot.repository.SpreadsheetRepository;
 import com.sheetpilot.repository.TransformationJobRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -165,5 +169,34 @@ public class JobService {
                 .errorMessage((String) stepMap.get("errorMessage"))
                 .rowsProcessed(((Number) stepMap.getOrDefault("rowsProcessed", 0)).intValue())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public Resource downloadResult(Long jobId, String format) {
+        TransformationJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
+
+        if (job.getStatus() != TransformationJob.JobStatus.COMPLETED) {
+            throw new IllegalStateException("Job is not completed");
+        }
+
+        // TODO: Generate actual CSV/XLSX from result data
+        // For now, return a simple CSV with mock data
+        String csv = "id,name,value\n1,Sample,100\n2,Data,200\n";
+        return new ByteArrayResource(csv.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Transactional
+    public Long saveResultAsSpreadsheet(Long jobId) {
+        TransformationJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
+
+        if (job.getStatus() != TransformationJob.JobStatus.COMPLETED) {
+            throw new IllegalStateException("Job is not completed");
+        }
+
+        // TODO: Create actual spreadsheet from result data
+        // For now, return a mock ID
+        return 999L;
     }
 }

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -28,4 +29,35 @@ public class JobResponse {
     private String errorMessage;
     private Double estimatedCost;
     private Double actualCost;
+    private JobResultDTO result;
+}
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+class JobResultDTO {
+    private Integer beforeRowCount;
+    private Integer afterRowCount;
+    private Integer beforeColumnCount;
+    private Integer afterColumnCount;
+    private List<String> columnsAdded;
+    private List<String> columnsRemoved;
+    private Map<String, String> columnsRenamed;
+    private Integer nullValuesRemoved;
+    private Integer duplicatesRemoved;
+    private Integer recordsFiltered;
+    private Double dataQualityScore;
+    private List<String> warnings;
+    private ResultPreviewDTO resultPreview;
+    private String downloadUrl;
+}
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+class ResultPreviewDTO {
+    private List<String> headers;
+    private List<List<String>> rows;
 }

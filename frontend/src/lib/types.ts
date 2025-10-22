@@ -123,6 +123,27 @@ export interface JobStepStatus {
 	completedAt: string | null;
 	errorMessage: string | null;
 	rowsProcessed: number;
+	executionTimeMs?: number;
+}
+
+export interface JobResult {
+	beforeRowCount: number;
+	afterRowCount: number;
+	beforeColumnCount: number;
+	afterColumnCount: number;
+	columnsAdded: string[];
+	columnsRemoved: string[];
+	columnsRenamed: Record<string, string>;
+	nullValuesRemoved: number;
+	duplicatesRemoved: number;
+	recordsFiltered: number;
+	dataQualityScore: number;
+	warnings: string[];
+	resultPreview?: {
+		headers: string[];
+		rows: string[][];
+	};
+	downloadUrl?: string;
 }
 
 export interface Job {
@@ -141,4 +162,5 @@ export interface Job {
 	errorMessage: string | null;
 	estimatedCost: number;
 	actualCost: number | null;
+	result?: JobResult;
 }

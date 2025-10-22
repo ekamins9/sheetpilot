@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { toastStore } from '$lib/stores/toast';
+	import JobResultsViewer from '$lib/components/JobResultsViewer.svelte';
 	import type { Job } from '$lib/types';
 
 	const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
@@ -315,6 +316,13 @@
 							<div class="mb-1">{log}</div>
 						{/each}
 					</div>
+				</div>
+			{/if}
+
+			<!-- Results Viewer (only show when completed) -->
+			{#if job.status === 'completed'}
+				<div class="mt-6">
+					<JobResultsViewer {job} />
 				</div>
 			{/if}
 
