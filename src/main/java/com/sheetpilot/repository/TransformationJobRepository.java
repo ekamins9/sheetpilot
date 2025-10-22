@@ -16,6 +16,7 @@ public interface TransformationJobRepository extends JpaRepository<Transformatio
 
     List<TransformationJob> findByPipelineId(Long pipelineId);
 
+    @Query("SELECT j FROM TransformationJob j WHERE :spreadsheetId MEMBER OF j.spreadsheetIds")
     List<TransformationJob> findBySpreadsheetId(Long spreadsheetId);
 
     List<TransformationJob> findByCreatedAtBetween(Instant start, Instant end);

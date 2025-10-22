@@ -70,9 +70,6 @@ public class Spreadsheet {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    @OneToMany(mappedBy = "spreadsheet", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<TransformationJob> transformationJobs;
-
     @PrePersist
     protected void onCreate() {
         if (uploadedAt == null) {
