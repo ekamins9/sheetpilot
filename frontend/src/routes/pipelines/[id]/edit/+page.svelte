@@ -7,6 +7,7 @@
 	import TransformationLibrary from '$lib/components/TransformationLibrary.svelte';
 	import PipelineCanvas from '$lib/components/PipelineCanvas.svelte';
 	import StepConfigPanel from '$lib/components/StepConfigPanel.svelte';
+	import AIAssistant from '$lib/components/AIAssistant.svelte';
 	import type { TransformationTemplate, EditorPipelineStep } from '$lib/types';
 
 	const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
@@ -330,4 +331,7 @@
 			</div>
 		{/if}
 	</div>
+
+	<!-- AI Assistant -->
+	<AIAssistant />
 </div>
