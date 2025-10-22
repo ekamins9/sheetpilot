@@ -9,6 +9,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Entity
@@ -27,32 +29,44 @@ public class TransformationJob {
     @JoinColumn(name = "pipeline_id", nullable = false)
     private Pipeline pipeline;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "spreadsheet_id", nullable = false)
-    private Spreadsheet spreadsheet;
+    @ElementCollection
+    @CollectionTable(name = "job_spreadsheets", joinColumns = @JoinColumn(name = "job_id"))
+    @Column(name = "spreadsheet_id")
+    @Builder.Default
+    private List<Long> spreadsheetIds = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private JobStatus status;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Double progress = 0.0;
+
     /**
-     * JSON structure storing job result metadata
+     * JSON structure storing job execution metadata
      * Example: {
-     *   "recordsProcessed": 1000,
-     *   "recordsFiltered": 50,
-     *   "outputFileUrl": "s3://bucket/output.xlsx",
-     *   "errors": []
+     *   "steps": [...],
+     *   "logs": [...],
+     *   "estimatedCost": 0.001,
+     *   "actualCost": 0.0012
      * }
      */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private Map<String, Object> result;
+    private Map<String, Object> metadata;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    @Column(columnDefinition = "TEXT")
+    private String errorMessage;
+
+    @Column(name = "started_at")
+    private Instant startedAt;
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     @PrePersist
     protected void onCreate() {
@@ -61,6 +75,9 @@ public class TransformationJob {
         }
         if (status == null) {
             status = JobStatus.PENDING;
+        }
+        if (progress == null) {
+            progress = 0.0;
         }
     }
 

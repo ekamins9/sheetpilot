@@ -89,3 +89,56 @@ export interface PipelineEditorState {
 	history: EditorPipelineStep[][];
 	historyIndex: number;
 }
+
+export interface AIChatMessage {
+	id: string;
+	role: 'user' | 'assistant';
+	content: string;
+	timestamp: string;
+	transformationSuggestion?: {
+		type: string;
+		config: Record<string, any>;
+		explanation: string;
+		confidence: number;
+	};
+	tokenUsage?: {
+		input: number;
+		output: number;
+		cost: number;
+	};
+}
+
+export interface AIChatState {
+	messages: AIChatMessage[];
+	isLoading: boolean;
+	error: string | null;
+	totalCost: number;
+}
+
+export interface JobStepStatus {
+	stepOrder: number;
+	stepName: string;
+	status: 'pending' | 'running' | 'completed' | 'failed';
+	startedAt: string | null;
+	completedAt: string | null;
+	errorMessage: string | null;
+	rowsProcessed: number;
+}
+
+export interface Job {
+	id: number;
+	pipelineId: number;
+	pipelineName: string;
+	spreadsheetIds: number[];
+	spreadsheetNames: string[];
+	status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+	progress: number;
+	startedAt: string;
+	completedAt: string | null;
+	executionTimeMs: number;
+	steps: JobStepStatus[];
+	logs: string[];
+	errorMessage: string | null;
+	estimatedCost: number;
+	actualCost: number | null;
+}

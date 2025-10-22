@@ -8,6 +8,7 @@
 	import PipelineCanvas from '$lib/components/PipelineCanvas.svelte';
 	import StepConfigPanel from '$lib/components/StepConfigPanel.svelte';
 	import AIAssistant from '$lib/components/AIAssistant.svelte';
+	import SpreadsheetSelectModal from '$lib/components/SpreadsheetSelectModal.svelte';
 	import type { TransformationTemplate, EditorPipelineStep } from '$lib/types';
 
 	const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
@@ -17,6 +18,7 @@
 	let isEditingName = false;
 	let saveTimeout: NodeJS.Timeout;
 	let keyboardListener: ((e: KeyboardEvent) => void) | null = null;
+	let showSpreadsheetModal = false;
 
 	$: pipelineId = parseInt($page.params.id);
 	$: isDirty = $pipelineEditorStore.isDirty;
@@ -172,6 +174,31 @@
 		if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
 		return date.toLocaleString();
 	}
+
+	async function handleRunPipeline(spreadsheetIds: number[]) {
+		showSpreadsheetModal = false;
+		toastStore.add('info', 'Starting job...');
+
+		try {
+			const response = await fetch(`${API_URL}/jobs`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					pipelineId,
+					spreadsheetIds
+				})
+			});
+
+			if (!response.ok) throw new Error('Failed to start job');
+
+			const job = await response.json();
+			toastStore.add('success', 'Job started!');
+			goto(`/jobs/${job.id}`);
+		} catch (error) {
+			console.error('Failed to start job:', error);
+			toastStore.add('error', 'Failed to start job');
+		}
+	}
 </script>
 
 <svelte:head>
@@ -271,10 +298,10 @@
 				</button>
 			</div>
 
-			<!-- Test Run -->
+			<!-- Run Pipeline -->
 			<button
-				on:click={handleTestRun}
-				class="px-4 py-2 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+				on:click={() => showSpreadsheetModal = true}
+				class="px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-lg hover:shadow-lg transition-all flex items-center gap-2"
 			>
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
@@ -290,7 +317,7 @@
 						d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				Test Run
+				Run Pipeline
 			</button>
 
 			<!-- Save Button -->
@@ -334,4 +361,11 @@
 
 	<!-- AI Assistant -->
 	<AIAssistant />
+
+	<!-- Spreadsheet Selection Modal -->
+	<SpreadsheetSelectModal
+		show={showSpreadsheetModal}
+		onConfirm={handleRunPipeline}
+		onCancel={() => showSpreadsheetModal = false}
+	/>
 </div>
